@@ -6,8 +6,8 @@
 // 解密耗时：1.76 秒。
 // 处理速度：219.061 MB/秒。
 // 第二次运行（有系统缓存）
-// 解密耗时：0.683 秒。
-// 处理速度：564.491 MB/秒。
+// 解密耗时：0.984 秒。
+// 处理速度：391.816 MB/秒。
 
 #include <stdio.h>
 #include <stdint.h>
@@ -18,7 +18,7 @@
 #include <windows.h>
 #include <time.h>
 
-#define MAX_FILES 3000
+#define MAX_FILES 5000  // 一个目录最多处理的文件数
 
 long long GetAllFormatFiles(char* path, char* format, char** files, unsigned int* index)
 {
@@ -42,10 +42,11 @@ long long GetAllFormatFiles(char* path, char* format, char** files, unsigned int
             files[*index] = full_path;
             (*index)++;
             total_size += st.st_size;
-        } else if (S_ISDIR(st.st_mode) && strcmp(filename, ".") != 0 && strcmp(filename, "..") != 0) {
-            char subdir[1024];
-            sprintf(subdir, "%s\\%s", path, filename);
-            total_size += GetAllFormatFiles(subdir, format, files, index);
+        // 下面语句会搜索子目录
+        // } else if (S_ISDIR(st.st_mode) && strcmp(filename, ".") != 0 && strcmp(filename, "..") != 0) {
+        //     char subdir[1024];
+        //     sprintf(subdir, "%s\\%s", path, filename);
+        //     total_size += GetAllFormatFiles(subdir, format, files, index);
         }
     }
 
@@ -61,12 +62,10 @@ unsigned char* read_file(char* filename, size_t* file_size)
     {printf("%s 打开文件错误\n", filename);
     }
   
-    // Get file size
     if (stat(filename, &st) != 0)
     {printf("%s 获取文件大小失败\n", filename);
     }
     *file_size = st.st_size;
-    // 一次性读取文件
     unsigned char* data = (unsigned char*)malloc(*file_size);
     if (data == NULL)
     {printf("%s 分配读入文件的内存失败\n", filename);
@@ -171,10 +170,24 @@ int main(int argc, const char* argv[])
     }
     output_path[sizeof(output_path) - 1] = '\0';
 
-    clock_t start_time = clock();    
+    clock_t start_time = clock();
     char* filelist[MAX_FILES];
     unsigned int filenumber = 0;
     long long total_size = GetAllFormatFiles(input_path, ".dat", filelist, &filenumber);
+
+    if (filenumber == 0 || total_size ==0){
+        printf("该目录下找不到 .dat 文件：\n%s\n", input_path);
+        return 1;
+    }
+    if (filenumber > MAX_FILES){
+        printf("该目录下 .dat 文件数超过 %d，是否继续处理？（输入 y 继续，输入其它则退出）\n", MAX_FILES);
+        char enter[2];
+        scanf("%c", &enter[0]);
+        enter[1] = '\0';
+        if (enter[0]!='y'&&enter[0]!='Y')
+            return 1;
+    }
+
 
     unsigned int bar_size = 60,
     finished_bar = 0,
